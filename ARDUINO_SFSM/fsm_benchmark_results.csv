@@ -1,0 +1,25 @@
+FSM Pattern,Optimization,Flash (Bytes),SRAM (Bytes),Min Cycles,Max Cycles,Avg Cycles
+nested_switch_return,-O0,2512,286,78,84,81
+nested_switch_return,-Os,1476,290,13,16,13
+nested_switch_return,-O2,1928,290,13,14,13
+nested_switch_break,-O0,2582,286,90,95,92
+nested_switch_break,-Os,1476,290,13,16,13
+nested_switch_break,-O2,1928,290,13,14,13
+array_of_structs,-O0,2518,304,121,211,160
+array_of_structs,-Os,1494,308,25,64,42
+array_of_structs,-O2,1952,308,25,59,39
+indexed_table,-O0,2438,298,79,79,79
+indexed_table,-Os,1526,302,17,17,17
+indexed_table,-O2,1978,302,18,18,18
+state_object,-O0,2562,292,105,105,105
+state_object,-Os,1520,298,26,26,26
+state_object,-O2,2008,298,24,25,24
+hsm_flat,-O0,2640,302,134,134,134
+hsm_flat,-Os,1564,308,37,39,37
+hsm_flat,-O2,2024,308,36,39,37
+hsm_nested,-O0,2796,410,213,213,213
+hsm_nested,-Os,1688,418,72,72,72
+hsm_nested,-O2,2048,418,71,71,71
+time_independent_timer0_isr,-O0,3338,643,,,
+time_independent_timer0_isr,-Os,2116,649,,,
+time_independent_timer0_isr,-O2,2992,649,,,
