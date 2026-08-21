@@ -1,17 +1,17 @@
 /*
- * Rad: A. Kumar, "How to implement finite state machine in C," aticleworld.com,
- * avgust 2017 - originalni clanak na kom je zasnovan ovaj pristup (direktno
- * next_state u struct-u, linearna pretraga). Pominje se i u: Carlgren,
- * Oskarsson (2023) UPTEC F 23044, sek. 2.8.2 "Array of Structs" (referenca [2]
- * = isti A. Kumar clanak). Za varijantu sa eventHandler pokazivacem na funkciju
- * (Figure 9 u radu), vidi fsm_array_of_structs_handler.cpp.
+ * Rad: Carlgren, J., Oskarsson, P. W. (2023). "State Machine Model-To-Code
+ * Transformation In C." UPTEC F 23044, Uppsala University - sekcija 3.6
+ * "Function Pointers" (Figure 8).
  *
- * Access Control FSM - Array of Structs Pattern
- * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED (identical to Nested Switch version)
+ * Access Control FSM - Function Pointers Pattern (kako ga rad doslovno naziva).
+ * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED
  * Events: EV_VALID, EV_INVALID, EV_TIMEOUT
  *
- * Difference from Nested Switch: transition lookup is a LINEAR SEARCH over an
- * array of {state, event, next_state} structs, instead of two nested switch statements.
+ * Razlika od fsm_indexed_table.cpp: tamo 2D niz cuva next_state VREDNOST
+ * direktno (jedno citanje iz memorije). Ovde 2D niz cuva POKAZIVACE NA
+ * FUNKCIJE (StateMachine[state][event] iz Fig. 8 rada) - svaka celija se
+ * poziva, ukljucujuci i "no-op" celije za nevalidne kombinacije. Ovo dodaje
+ * indirektni poziv funkcije koji indexed_table nema.
  *
  * UART commands (9600 baud):
  *   '1' -> EV_VALID
@@ -19,7 +19,6 @@
  *   't' -> EV_TIMEOUT
  *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles
  */
-
 #include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -27,6 +26,9 @@
 
 enum State { STATE_IDLE = 0, STATE_CHECKING, STATE_GRANTED, STATE_DENIED };
 enum Event { EV_VALID = 0, EV_INVALID, EV_TIMEOUT };
+
+#define NUM_STATES 4
+#define NUM_EVENTS 3
 
 static volatile uint8_t current_state = STATE_IDLE;
 
@@ -77,29 +79,29 @@ static inline uint16_t cycles_stop(void) {
     return TCNT1;
 }
 
-typedef struct {
-    uint8_t state;
-    uint8_t event;
-    uint8_t next_state;
-} Transition;
+typedef uint8_t (*EventHandler)(void);
 
-static const Transition transition_table[] = {
-    { STATE_IDLE,     EV_VALID,   STATE_CHECKING },
-    { STATE_CHECKING, EV_VALID,   STATE_GRANTED  },
-    { STATE_CHECKING, EV_INVALID, STATE_DENIED   },
-    { STATE_GRANTED,  EV_TIMEOUT, STATE_IDLE     },
-    { STATE_DENIED,   EV_TIMEOUT, STATE_IDLE     },
+static uint8_t handler_idle_valid(void)       { return STATE_CHECKING; }
+static uint8_t handler_idle_noop(void)        { return STATE_IDLE; }
+static uint8_t handler_checking_valid(void)   { return STATE_GRANTED; }
+static uint8_t handler_checking_invalid(void) { return STATE_DENIED; }
+static uint8_t handler_checking_noop(void)    { return STATE_CHECKING; }
+static uint8_t handler_granted_noop(void)     { return STATE_GRANTED; }
+static uint8_t handler_granted_timeout(void)  { return STATE_IDLE; }
+static uint8_t handler_denied_noop(void)      { return STATE_DENIED; }
+static uint8_t handler_denied_timeout(void)   { return STATE_IDLE; }
+
+// 2D niz POKAZIVACA NA FUNKCIJE - svaka (state,event) kombinacija je popunjena
+static const EventHandler transition_table[NUM_STATES][NUM_EVENTS] = {
+    /*                  EV_VALID               EV_INVALID              EV_TIMEOUT             */
+    /* STATE_IDLE     */ { handler_idle_valid,     handler_idle_noop,      handler_idle_noop      },
+    /* STATE_CHECKING */ { handler_checking_valid, handler_checking_invalid, handler_checking_noop },
+    /* STATE_GRANTED  */ { handler_granted_noop,   handler_granted_noop,   handler_granted_timeout },
+    /* STATE_DENIED   */ { handler_denied_noop,    handler_denied_noop,    handler_denied_timeout  },
 };
 
-#define TABLE_SIZE (sizeof(transition_table) / sizeof(Transition))
-
-static uint8_t fsm_transition(uint8_t state, uint8_t event) {
-    for (uint8_t i = 0; i < TABLE_SIZE; i++) {
-        if (transition_table[i].state == state && transition_table[i].event == event) {
-            return transition_table[i].next_state;
-        }
-    }
-    return state; // no match -> stay in current state
+static inline uint8_t fsm_transition(uint8_t state, uint8_t event) {
+    return transition_table[state][event](); // indeksiranje + indirektni poziv
 }
 
 static const char* state_name(uint8_t s) {
@@ -126,7 +128,7 @@ static void run_benchmark(void) {
     const uint16_t N = 1000;
     uint16_t min_c = 0xFFFF, max_c = 0;
     uint32_t sum_c = 0;
-    uint8_t ev_cycle[3] = { EV_VALID, EV_VALID, EV_TIMEOUT }; // IDLE->CHECKING->GRANTED->IDLE
+    uint8_t ev_cycle[3] = { EV_VALID, EV_VALID, EV_TIMEOUT };
 
     uart_puts("Running benchmark (");
     uart_put_uint(N);
@@ -147,7 +149,7 @@ static void run_benchmark(void) {
 
 void setup() {
     uart_init();
-    uart_puts("\r\nAccess FSM - Array of Structs pattern ready.\r\n");
+    uart_puts("\r\nAccess FSM - Function Pointers pattern ready.\r\n");
     uart_puts("Commands: 1=VALID 0=INVALID t=TIMEOUT b=BENCHMARK\r\n");
     uart_puts("Current state: IDLE\r\n");
 }

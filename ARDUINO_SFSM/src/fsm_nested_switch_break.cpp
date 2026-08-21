@@ -1,4 +1,13 @@
 /*
+ * Rad: Carlgren, J., Oskarsson, P. W. (2023). "State Machine Model-To-Code
+ * Transformation In C." UPTEC F 23044, Uppsala University - sekcija 2.8.1
+ * "Nested Switch/If Statements" i sekcija 3.5 "Nested Switch".
+ * Pominje se i u: Adamczyk, P. "The Anthology of the Finite State Machine
+ * Design Patterns" (Introduction, "nested switch statements [vGB99]"); Kadam,
+ * Jogalekar, Hembade (2023) "Model a Finite State Machine as a Construct in
+ * Computer Programming" - FSM2Construct algoritam (Listing 2) koristi isti
+ * switch(CurrentState) dispatch.
+ *
  * SWITCH-CASE BREAK
  * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED
  * Events: EV_VALID, EV_INVALID, EV_TIMEOUT

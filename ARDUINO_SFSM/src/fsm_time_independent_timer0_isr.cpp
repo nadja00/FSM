@@ -1,4 +1,13 @@
 /*
+ * NAPOMENA: ovaj fajl NE modeluje konkretan FSM pattern iz literature - to je
+ * nasa sopstvena provera metodologije merenja (dokazuje da fsm_transition()
+ * trosak ne zavisi od toga koliko je FSM prethodno stajao u stanju, cak i uz
+ * pravi hardverski tajmer/ISR koji izaziva cekanje). Srodna metodologija
+ * merenja ciklusa (broj ciklusa umesto apsolutnog vremena, radi prenosivosti
+ * izmedju MK-ova) opisana je u: Katin, P., Chmelov, V., Shemaev, V. (2020).
+ * "Development of Typical 'State' Software Patterns for Cortex-M
+ * Microcontrollers in Real Time." Eastern-European Journal of Enterprise
+ * Technologies, 3/9(105) - sek. 5.3, Cycle Count (DWT_CYCCNT) metodologija.
  *
  * UART commands (9600 baud):
  *   'a' -> Scenario A (immediate transition from CHECKING, no wait)

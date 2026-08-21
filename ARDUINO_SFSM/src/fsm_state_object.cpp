@@ -1,4 +1,12 @@
 /*
+ * Rad: Adamczyk, P. "The Anthology of the Finite State Machine Design
+ * Patterns" - "State DP [GHJV95, pp. 305]" (Gamma, Helm, Johnson, Vlissides,
+ * "Design Patterns: Elements of Reusable Object-Oriented Software", 1995) -
+ * temeljni State Design Pattern. Pominje se i u: Carlgren, Oskarsson (2023)
+ * UPTEC F 23044, sek. 2.8.4 "State Pattern", sek. 3.8 "OOP in C" i sek. 3.9
+ * "Basic State Pattern" (struct + function pointer emulacija klase, tacno
+ * kao ovde).
+ *
  * Access Control FSM - State Object Pattern (OOP-in-C / Basic State Pattern)
  *
  * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED (identical to previous versions)
