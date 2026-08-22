@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "ARDUINO_SFSM"
+		},
+		{
+			"name": "ESP32_SFSM",
+			"path": "ESP32_SFSM"
+		},
+		{
+			"path": "RPI_SFSM"
+		}
+	],
+	"settings": {}
+}
