@@ -1,4 +1,11 @@
 /*
+ * Rad: Adamczyk, P. "The Anthology of the Finite State Machine Design
+ * Patterns" - paterni "State Table Pattern [Dou98, pp. 650]" (Context salje
+ * dogadjaj Transition klasi koja vraca rezultujuce stanje u O(c) vremenu) i
+ * "Optimal FSM [Sam02, pp. 69]". Za varijantu sa 2D nizom POKAZIVACA NA
+ * FUNKCIJE (Carlgren & Oskarsson (2023) UPTEC F 23044, sek. 3.6 "Function
+ * Pointers", Figure 8), vidi fsm_function_pointers.cpp.
+ *
  * Access Control FSM - Indexed Table Pattern (O(1) lookup)
  * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED (identical to previous versions)
  * Events: EV_VALID, EV_INVALID, EV_TIMEOUT

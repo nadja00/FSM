@@ -10,9 +10,8 @@
  * Framework). Za varijantu sa punim entry()/exit() lancem akcija (prava
  * Harel-ova statechart semantika), vidi fsm_hsm_statechart.cpp.
  *
- * Access Control FSM - Manual HSM Pattern, Test 4b: NESTED (real hierarchy)
- * Platform: Arduino Uno (ATmega328P), bare-metal register access, no Arduino libs.
- * Measurement: Timer1 free-running cycle counter (TCNT1, no prescaler = 1 cycle @16MHz).
+ * Access Control FSM - Manual HSM Pattern, Test 4b: NESTED (real hierarchy) - ESP32
+ * Measurement: Xtensa CPU cycle counter via ESP.getCycleCount().
  *
  * FSM: IDLE, CHECKING, DENIED (unchanged) + GRANTED is now a SUPERSTATE with two
  * substates: NORMAL_ACCESS and ADMIN_ACCESS.
@@ -22,26 +21,20 @@
  *     |-- NORMAL_ACCESS  -- EV_ADMIN -> ADMIN_ACCESS
  *     |-- ADMIN_ACCESS   -- EV_ADMIN -> NORMAL_ACCESS (toggle, just for demo)
  *
- * Compare against Test 4a: there, EV_TIMEOUT->IDLE would have to be duplicated
- * in every child handler under a flat design. Here it is written ONCE on GRANTED
- * and both NORMAL_ACCESS and ADMIN_ACCESS inherit it automatically via bubbling.
- *
- * Events: EV_VALID, EV_INVALID, EV_TIMEOUT, EV_ADMIN
- *
- * UART commands (9600 baud):
+ * Serial commands (115200 baud):
  *   '1' -> EV_VALID
  *   '0' -> EV_INVALID
  *   't' -> EV_TIMEOUT
  *   'a' -> EV_ADMIN (toggle NORMAL_ACCESS <-> ADMIN_ACCESS while inside GRANTED)
- *   'b' -> run automatic benchmark (1000 transitions through NORMAL_ACCESS<->ADMIN_ACCESS,
- *          measuring the INHERITED EV_TIMEOUT transition cost)
+ *   'b' -> run automatic benchmark (1000 transitions), measuring the INHERITED EV_TIMEOUT cost
+ *   'r' -> print current resource usage (heap/stack/flash) on demand
  */
-#include <Arduino.h>
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <stdint.h>
 
-// ---------- States & Events ----------
+#include <Arduino.h>
+#include <stdint.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 enum State {
     STATE_IDLE = 0,
     STATE_CHECKING,
@@ -57,56 +50,22 @@ enum Event { EV_VALID = 0, EV_INVALID, EV_TIMEOUT, EV_ADMIN };
 
 static volatile uint8_t current_state = STATE_IDLE;
 
-// ---------- UART (raw register access, no Serial lib) ----------
-#define BAUD 9600
-#define UBRR_VAL ((F_CPU / (16UL * BAUD)) - 1)
-
-static void uart_init(void) {
-    UBRR0H = (uint8_t)(UBRR_VAL >> 8);
-    UBRR0L = (uint8_t)UBRR_VAL;
-    UCSR0B = (1 << TXEN0) | (1 << RXEN0);
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00); // 8N1
+static void print_resource_usage(void) {
+    Serial.println();
+    Serial.println(F("--- ESP32 resource usage ---"));
+    Serial.printf("Free heap:      %u / %u bytes\r\n", ESP.getFreeHeap(), ESP.getHeapSize());
+    Serial.printf("Min free heap:  %u bytes (worst case since boot)\r\n", ESP.getMinFreeHeap());
+    Serial.printf("Max alloc heap: %u bytes (largest contiguous block)\r\n", ESP.getMaxAllocHeap());
+    Serial.printf("Stack HWM:      %u bytes free (loop task)\r\n", (unsigned)(uxTaskGetStackHighWaterMark(NULL) * 4));
+    Serial.printf("Sketch used:    %u bytes, free flash: %u bytes\r\n", ESP.getSketchSize(), ESP.getFreeSketchSpace());
+    Serial.printf("CPU freq:       %u MHz\r\n", ESP.getCpuFreqMHz());
+    Serial.println();
 }
 
-static void uart_putc(char c) {
-    while (!(UCSR0A & (1 << UDRE0)));
-    UDR0 = c;
+static inline uint32_t cycles_now(void) {
+    return ESP.getCycleCount();
 }
 
-static void uart_puts(const char *s) {
-    while (*s) uart_putc(*s++);
-}
-
-static void uart_put_uint(uint16_t v) {
-    char buf[6];
-    uint8_t i = 0;
-    if (v == 0) { uart_putc('0'); return; }
-    while (v > 0) { buf[i++] = '0' + (v % 10); v /= 10; }
-    while (i > 0) uart_putc(buf[--i]);
-}
-
-static uint8_t uart_available(void) {
-    return (UCSR0A & (1 << RXC0)) != 0;
-}
-
-static char uart_getc(void) {
-    while (!(UCSR0A & (1 << RXC0)));
-    return UDR0;
-}
-
-// ---------- Timer1 cycle counter ----------
-static inline void cycles_start(void) {
-    TCCR1B = 0;
-    TCNT1 = 0;
-    TCCR1B = (1 << CS10);
-}
-
-static inline uint16_t cycles_stop(void) {
-    TCCR1B = 0;
-    return TCNT1;
-}
-
-// ---------- HSM state descriptor ----------
 typedef uint8_t (*StateHandler)(uint8_t event);
 
 typedef struct {
@@ -114,7 +73,6 @@ typedef struct {
     int8_t parent; // -1 = top state (no parent)
 } StateNode;
 
-// ---------- Handlers ----------
 static uint8_t state_idle_handle(uint8_t event) {
     if (event == EV_VALID) return STATE_CHECKING;
     return EVENT_UNHANDLED;
@@ -132,7 +90,6 @@ static uint8_t state_denied_handle(uint8_t event) {
 }
 
 // GRANTED superstate handler: owns the transition shared by BOTH substates.
-// Neither NORMAL_ACCESS nor ADMIN_ACCESS need to repeat this logic themselves.
 static uint8_t state_granted_handle(uint8_t event) {
     if (event == EV_TIMEOUT) return STATE_IDLE;
     return EVENT_UNHANDLED;
@@ -151,7 +108,6 @@ static uint8_t state_admin_access_handle(uint8_t event) {
     return EVENT_UNHANDLED;
 }
 
-// ---------- State table with REAL parent/child relationships ----------
 static const StateNode state_table[NUM_STATES] = {
     /* STATE_IDLE          */ { state_idle_handle,          -1 },
     /* STATE_CHECKING      */ { state_checking_handle,      -1 },
@@ -161,7 +117,6 @@ static const StateNode state_table[NUM_STATES] = {
     /* STATE_ADMIN_ACCESS  */ { state_admin_access_handle,  STATE_GRANTED }, // child of GRANTED
 };
 
-// ---------- HSM dispatch: identical mechanism to Test 4a ----------
 static uint8_t fsm_transition(uint8_t state, uint8_t event) {
     int8_t node = state;
     uint8_t result;
@@ -188,59 +143,63 @@ static const char* state_name(uint8_t s) {
     }
 }
 
-// ---------- Single measured transition ----------
-static uint16_t measured_transition(uint8_t event) {
-    cli();
-    cycles_start();
+static uint32_t measured_transition(uint8_t event) {
+    noInterrupts();
+    uint32_t start = cycles_now();
     uint8_t next = fsm_transition(current_state, event);
-    uint16_t cycles = cycles_stop();
-    sei();
+    uint32_t end = cycles_now();
+    interrupts();
     current_state = next;
-    return cycles;
+    return end - start;
 }
 
-// ---------- Automatic benchmark ----------
-// Measures the INHERITED transition: bounce NORMAL_ACCESS <-> ADMIN_ACCESS via
-// EV_ADMIN (handled locally, no bubbling), interleaved with EV_TIMEOUT (handled
-// by bubbling up to the GRANTED parent) - this isolates the bubbling overhead.
+// Measures the INHERITED transition: force state=NORMAL_ACCESS, fire EV_TIMEOUT
+// each time, isolating the bubbling overhead.
 static void run_benchmark(void) {
     const uint16_t N = 1000;
-    uint16_t min_c = 0xFFFF, max_c = 0;
-    uint32_t sum_c = 0;
+    uint32_t min_c = 0xFFFFFFFF, max_c = 0;
+    uint64_t sum_c = 0;
 
-    uart_puts("Running benchmark (");
-    uart_put_uint(N);
-    uart_puts(" transitions, forcing state=NORMAL_ACCESS, event=EV_TIMEOUT each time)...\r\n");
+    Serial.printf("Running benchmark (%u transitions, forcing state=NORMAL_ACCESS, event=EV_TIMEOUT each time)...\r\n", N);
 
     for (uint16_t i = 0; i < N; i++) {
         current_state = STATE_NORMAL_ACCESS; // force substate before each measured bubble-up
-        uint16_t c = measured_transition(EV_TIMEOUT);
+        uint32_t c = measured_transition(EV_TIMEOUT);
         if (c < min_c) min_c = c;
         if (c > max_c) max_c = c;
         sum_c += c;
     }
 
-    uart_puts("Min cycles: ");  uart_put_uint(min_c); uart_puts("\r\n");
-    uart_puts("Max cycles: ");  uart_put_uint(max_c); uart_puts("\r\n");
-    uart_puts("Avg cycles: ");  uart_put_uint((uint16_t)(sum_c / N)); uart_puts("\r\n");
+    double mhz = ESP.getCpuFreqMHz();
+    uint32_t avg_c = (uint32_t)(sum_c / N);
+    Serial.printf("Min cycles: %u (%.3f us)\r\n", min_c, min_c / mhz);
+    Serial.printf("Max cycles: %u (%.3f us)\r\n", max_c, max_c / mhz);
+    Serial.printf("Avg cycles: %u (%.3f us)\r\n", avg_c, avg_c / mhz);
     current_state = STATE_IDLE; // reset after benchmark
+
+    print_resource_usage();
 }
 
-// ---------- Setup / Loop ----------
 void setup() {
-    uart_init();
-    uart_puts("\r\nAccess FSM - Manual HSM (NESTED, Test 4b) ready.\r\n");
-    uart_puts("Commands: 1=VALID 0=INVALID t=TIMEOUT a=ADMIN_TOGGLE b=BENCHMARK\r\n");
-    uart_puts("Current state: IDLE\r\n");
+    Serial.begin(115200);
+    delay(200);
+    Serial.println();
+    Serial.println(F("Access FSM - Manual HSM (NESTED, Test 4b) ready (ESP32)."));
+    Serial.println(F("Commands: 1=VALID 0=INVALID t=TIMEOUT a=ADMIN_TOGGLE b=BENCHMARK r=RESOURCES"));
+    Serial.println(F("Current state: IDLE"));
+    print_resource_usage();
 }
 
 void loop() {
-    if (uart_available()) {
-        char c = uart_getc();
+    if (Serial.available()) {
+        char c = Serial.read();
         uint8_t event;
 
         if (c == 'b') {
             run_benchmark();
+            return;
+        } else if (c == 'r') {
+            print_resource_usage();
             return;
         } else if (c == '1') {
             event = EV_VALID;
@@ -254,12 +213,10 @@ void loop() {
             return;
         }
 
-        uint16_t cycles = measured_transition(event);
+        uint32_t cycles = measured_transition(event);
+        double mhz = ESP.getCpuFreqMHz();
 
-        uart_puts("Event handled -> State: ");
-        uart_puts(state_name(current_state));
-        uart_puts(" | Cycles: ");
-        uart_put_uint(cycles);
-        uart_puts("\r\n");
+        Serial.printf("Event handled -> State: %s | Cycles: %u (%.3f us)\r\n",
+                      state_name(current_state), cycles, cycles / mhz);
     }
 }
