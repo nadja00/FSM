@@ -14,6 +14,12 @@ indexed_table,-O2,1912,320,16,16,16
 state_object,-O0,2606,308,99,110,106
 state_object,-Os,1570,316,22,27,25
 state_object,-O2,1940,312,22,27,24
+hsm_flat,-O0,2862,396,132,143,137
+hsm_flat,-Os,1772,406,33,37,35
+hsm_flat,-O2,2164,402,33,37,35
+hsm_nested,-O0,2852,414,217,217,217
+hsm_nested,-Os,1750,420,74,74,74
+hsm_nested,-O2,2156,420,72,72,72
 time_independent_timer0_isr,-O0,3374,645,,,
 time_independent_timer0_isr,-Os,2102,649,,,
 time_independent_timer0_isr,-O2,2976,649,,,
