@@ -22,7 +22,9 @@ FSM_ENVS = [
     "fsm_hsm_flat",
     "fsm_hsm_nested",
     "fsm_time_independent_timer0_isr",
-    "fsm_array_of_structs_handler"
+    "fsm_array_of_structs_handler",
+    "fsm_santic_lookup_table",
+    "fsm_function_pointers"
 ]
 
 OPTIMIZATIONS = ["-O0", "-Os", "-O2"]
@@ -86,6 +88,12 @@ build_src_filter = +<fsm_time_independent_timer0_isr.cpp>
 
 [env:fsm_array_of_structs_handler]
 build_src_filter = +<fsm_array_of_structs_handler.cpp>
+
+[env:fsm_santic_lookup_table]
+build_src_filter = +<fsm_santic_lookup_table.cpp>
+
+[env:fsm_function_pointers]
+build_src_filter = +<fsm_function_pointers.cpp>
 """
     with open("platformio.ini", "w", encoding="utf-8") as f:
         f.write(content)

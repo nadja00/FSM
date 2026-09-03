@@ -26,3 +26,9 @@ time_independent_timer0_isr,-O2,2992,649,,,
 array_of_structs_handler,-O0,2618,324,139,226,177
 array_of_structs_handler,-Os,1542,328,37,76,54
 array_of_structs_handler,-O2,2000,328,37,71,51
+santic_lookup_table,-O0,2642,340,82,83,82
+santic_lookup_table,-Os,1568,346,38,39,38
+santic_lookup_table,-O2,2090,346,37,38,37
+function_pointers,-O0,2608,314,102,102,102
+function_pointers,-Os,1536,318,30,30,30
+function_pointers,-O2,2050,318,30,30,30
