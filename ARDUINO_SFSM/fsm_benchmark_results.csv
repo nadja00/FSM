@@ -23,3 +23,6 @@ hsm_nested,-O2,2048,418,71,71,71
 time_independent_timer0_isr,-O0,3338,643,,,
 time_independent_timer0_isr,-Os,2116,649,,,
 time_independent_timer0_isr,-O2,2992,649,,,
+array_of_structs_handler,-O0,2618,324,139,226,177
+array_of_structs_handler,-Os,1542,328,37,76,54
+array_of_structs_handler,-O2,2000,328,37,71,51
