@@ -1,37 +1,3 @@
-/*
- * Rad: Harel, D. (1987). "Statecharts: a Visual Formalism for Complex
- * Systems." Science of Computer Programming, Vol. 8, pp. 231-274 - koncept
- * "bubbling" dogadjaja ka roditelju kad ga dete ne obradi. Mehanizam
- * dispecovanja (EVENT_UNHANDLED bubbling) odgovara "behavioral inheritance"
- * konceptu iz: Moreno, A., Valduvieco, J. "dFSM: Finite State Machines for
- * Embedded Systems" (poziva se na Samek-ov Quantum Framework).
- * NAPOMENA: ovde su SVI roditelji -1 (nema prave hijerarhije) - to je nasa
- * sopstvena kontrolna/bazna varijanta (Test 4a) da izmerimo cist trosak
- * bubbling mehanizma bez ikakve koristi od nasledjivanja ponasanja; koncept
- * "flat state machine" pominje i Carlgren & Oskarsson (2023) UPTEC F 23044,
- * sek. 2.1.
- *
- * Access Control FSM - Manual HSM Pattern, Test 4a: FLAT (no real hierarchy)
- * Platform: Arduino Uno (ATmega328P), bare-metal register access, no Arduino libs.
- * Measurement: Timer1 free-running cycle counter (TCNT1, no prescaler = 1 cycle @16MHz).
- *
- * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED (identical to previous versions)
- * Events: EV_VALID, EV_INVALID, EV_TIMEOUT
- *
- * This implements the general HSM dispatch mechanism (event bubbling to parent
- * state if the current state's handler does not consume the event), exactly as
- * used in QP/Harel-style statecharts. However, in THIS test every state's parent
- * is NULL (no real hierarchy) - so this measures the pure overhead of the HSM
- * dispatch mechanism with zero benefit from inheritance. Compare directly with
- * Test 4b, where a real parent/child relationship is introduced.
- *
- * UART commands (9600 baud):
- *   '1' -> EV_VALID
- *   '0' -> EV_INVALID
- *   't' -> EV_TIMEOUT
- *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles
- */
-
 #include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -461,7 +427,7 @@ void loop()
 
         event = atoi(&c);
 
-        if (event < 0 && event >= NUM_EVENTS)
+        if (event < 0 || event >= NUM_EVENTS)
         {
             return;
         }

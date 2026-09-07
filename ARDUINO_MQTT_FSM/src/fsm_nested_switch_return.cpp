@@ -179,6 +179,8 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event)
     case S3:
         switch (event)
         {
+        case ConnectC2:
+            return S9;
         case ConnectC1WithWill:
             return S2;
         case SubscribeC2:
@@ -201,6 +203,8 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event)
     case S5:
         switch (event)
         {
+        case ConnectC2:
+            return S12;
         case ConnectC1WithWill:
             return S2;
         case SubscribeC2:
@@ -445,7 +449,7 @@ void loop()
 
         event = atoi(&c);
 
-        if (event < 0 && event >= NUM_EVENTS)
+        if (event < 0 || event >= NUM_EVENTS)  //event je uint pa svakako nikad nece biti <0 pa ovaj uslov sa && nikad nece biti ispunjen
         {
             return;
         }

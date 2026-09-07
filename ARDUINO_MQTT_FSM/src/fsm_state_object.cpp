@@ -1,29 +1,3 @@
-/*
- * Rad: Adamczyk, P. "The Anthology of the Finite State Machine Design
- * Patterns" - "State DP [GHJV95, pp. 305]" (Gamma, Helm, Johnson, Vlissides,
- * "Design Patterns: Elements of Reusable Object-Oriented Software", 1995) -
- * temeljni State Design Pattern. Pominje se i u: Carlgren, Oskarsson (2023)
- * UPTEC F 23044, sek. 2.8.4 "State Pattern", sek. 3.8 "OOP in C" i sek. 3.9
- * "Basic State Pattern" (struct + function pointer emulacija klase, tacno
- * kao ovde).
- *
- * Access Control FSM - State Object Pattern (OOP-in-C / Basic State Pattern)
- *
- * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED (identical to previous versions)
- * Events: EV_VALID, EV_INVALID, EV_TIMEOUT
- *
- * Difference from previous patterns: each state "owns" its own handler function
- * (emulating an object's method). Context dispatches via a function pointer table
- * indexed only by state (not by event) - the state's own handler decides what to
- * do with the event. This mirrors the classic OOP State design pattern, without
- * classes: struct StateObject { uint8_t (*handle_event)(uint8_t event); }.
- *
- * UART commands (9600 baud):
- *   '1' -> EV_VALID
- *   '0' -> EV_INVALID
- *   't' -> EV_TIMEOUT
- *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles
- */
 #include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -454,7 +428,7 @@ void loop()
 
         event = atoi(&c);
 
-        if (event < 0 && event >= NUM_EVENTS)
+        if (event < 0 || event >= NUM_EVENTS)
         {
             return;
         }

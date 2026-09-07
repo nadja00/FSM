@@ -18,6 +18,7 @@
  *   't' -> EV_TIMEOUT
  *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles
  */
+
 #include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -138,6 +139,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state = S0;
             break;
         }
+        break;
     case S1:
         switch (event)
         {
@@ -157,6 +159,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S1;
             break;
         }
+        break;
     case S2:
         switch (event)
         {
@@ -179,9 +182,13 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S2;
             break;
         }
+        break;
     case S3:
         switch (event)
         {
+        case ConnectC2:
+            next_state =  S9;
+            break;
         case ConnectC1WithWill:
             next_state =  S2;
             break;
@@ -192,6 +199,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S3;
             break;
         }
+        break;
     case S4:
         switch (event)
         {
@@ -208,9 +216,13 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S4;
             break;
         }
+        break;
     case S5:
         switch (event)
         {
+        case ConnectC2:
+            next_state =  S12;
+            break;  
         case ConnectC1WithWill:
             next_state =  S2;
             break;
@@ -224,6 +236,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S5;
             break;
         }
+        break;
     case S6:
         switch (event)
         {
@@ -246,6 +259,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S6;
             break;
         }
+        break;  
     case S7:
         switch (event)
         {
@@ -265,6 +279,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S7;
             break;
         }
+        break;
     case S8:
         switch (event)
         {
@@ -284,6 +299,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S8;
             break;
         }
+        break;
     case S9:
         switch (event)
         {
@@ -297,6 +313,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S9;
             break;
         }
+        break;
     case S10:
         switch (event)
         {
@@ -319,6 +336,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S10;
             break;
         }
+        break;      
     case S11:
         switch (event)
         {
@@ -341,6 +359,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S11;
             break;
         }
+        break;
     case S12:
         switch (event)
         {
@@ -357,6 +376,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S12;
             break;
         }
+        break;
     case S13:
         switch (event)
         {
@@ -373,6 +393,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S13;
             break;
         }
+        break;
     case S14:
         switch (event)
         {
@@ -392,6 +413,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S14;
             break;
         }
+        break;  
     case S15:
         switch (event)
         {
@@ -411,6 +433,7 @@ static uint8_t fsm_transition(uint8_t state, uint8_t event) {
             next_state =  S15;
             break;
         }
+        break;
     default:
         next_state = S0;
         break;
@@ -510,7 +533,7 @@ void loop()
 
         event = atoi(&c);
 
-        if (event < 0 && event >= NUM_EVENTS)
+        if (event < 0 || event >= NUM_EVENTS)
         {
             return;
         }

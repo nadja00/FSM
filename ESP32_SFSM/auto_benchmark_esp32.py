@@ -14,6 +14,7 @@ OUTPUT_CSV = "fsm_benchmark_results_esp32.csv"
 
 # 8 FSM modela (isti patterni kao u ARDUINO_SFSM, adaptirani za ESP32)
 FSM_ENVS = [
+    "fsm_empty",
     "fsm_nested_switch_return",
     "fsm_nested_switch_break",
     "fsm_array_of_structs",
@@ -22,6 +23,7 @@ FSM_ENVS = [
     "fsm_hsm_flat",
     "fsm_hsm_nested",
     "fsm_time_independent_timer_isr",  # napomena: 'b' ovde pokrece Scenario B, ne 1000-tranzicija benchmark
+    "fsm_lookup_table_santic"
 ]
 
 # Bez -flto na ESP32: precompiled SDK biblioteke (WiFi/BT/...) nisu gradjene sa LTO,
@@ -62,6 +64,9 @@ monitor_speed = 115200
 {unflags}
 {flags}
 
+[env:fsm_empty]
+build_src_filter = +<fsm_empty.cpp>
+
 [env:fsm_nested_switch_return]
 build_src_filter = +<fsm_nested_switch_return.cpp>
 
@@ -85,6 +90,10 @@ build_src_filter = +<fsm_hsm_nested.cpp>
 
 [env:fsm_time_independent_timer_isr]
 build_src_filter = +<fsm_time_independent_timer_isr.cpp>
+
+[env:fsm_lookup_table_santic]
+build_src_filter = +<fsm_lookup_table_santic.cpp>
+
 """
     with open("platformio.ini", "w", encoding="utf-8") as f:
         f.write(content)

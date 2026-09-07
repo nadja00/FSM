@@ -387,7 +387,7 @@ void loop()
 
         event = atoi(&c);
 
-        if (event < 0 && event >= NUM_EVENTS)
+        if (event < 0 || event >= NUM_EVENTS)
         {
             return;
         }

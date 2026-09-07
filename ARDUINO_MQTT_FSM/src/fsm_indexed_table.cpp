@@ -1,25 +1,4 @@
-/*
- * Rad: Adamczyk, P. "The Anthology of the Finite State Machine Design
- * Patterns" - paterni "State Table Pattern [Dou98, pp. 650]" (Context salje
- * dogadjaj Transition klasi koja vraca rezultujuce stanje u O(c) vremenu) i
- * "Optimal FSM [Sam02, pp. 69]". Za varijantu sa 2D nizom POKAZIVACA NA
- * FUNKCIJE (Carlgren & Oskarsson (2023) UPTEC F 23044, sek. 3.6 "Function
- * Pointers", Figure 8), vidi fsm_function_pointers.cpp.
- *
- * Access Control FSM - Indexed Table Pattern (O(1) lookup)
- * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED (identical to previous versions)
- * Events: EV_VALID, EV_INVALID, EV_TIMEOUT
- *
- * Difference from Array of Structs (linear search): transition lookup is a DIRECT
- * 2D array index [state][event] -> next_state. No loop, no comparisons, no switch.
- * Every (state,event) combination is explicitly filled in (including "no-op" ones).
- *
- * UART commands (9600 baud):
- *   '1' -> EV_VALID
- *   '0' -> EV_INVALID
- *   't' -> EV_TIMEOUT
- *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles
- */
+
 #include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -218,7 +197,7 @@ void loop()
 
         event = atoi(&c);
 
-        if (event < 0 && event >= NUM_STATES)
+        if (event < 0 || event >= NUM_EVENTS)
         {
             return;
         }
