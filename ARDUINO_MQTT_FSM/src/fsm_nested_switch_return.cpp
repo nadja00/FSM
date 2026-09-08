@@ -396,7 +396,13 @@ static void run_benchmark(void)
     const uint16_t N = 1000;
     uint16_t min_c = 0xFFFF, max_c = 0;
     uint32_t sum_c = 0;
-    uint8_t event = rand() % NUM_EVENTS;
+
+    // Unapred generisan niz dogadjaja, POTPUNO van merenog prozora - sprecava
+    // da -flto premesti rand()%NUM_EVENTS deljenje unutar cli()/sei() bloka.
+    static uint8_t precomputed_events[N];
+    for (uint16_t i = 0; i < N; i++) {
+        precomputed_events[i] = rand() % NUM_EVENTS;
+    }
 
     uart_puts("Running benchmark (");
     uart_put_uint(N);
@@ -404,15 +410,14 @@ static void run_benchmark(void)
 
     for (uint16_t i = 0; i < N; i++)
     {
-        event = rand() % NUM_EVENTS;
-        uint16_t c = measured_transition(event);
+        uint16_t c = measured_transition(precomputed_events[i]);
         if (c < min_c)
             min_c = c;
         if (c > max_c)
             max_c = c;
         sum_c += c;
     }
-
+    
     uart_puts("Min cycles: ");
     uart_put_uint(min_c);
     uart_puts("\r\n");

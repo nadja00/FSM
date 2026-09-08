@@ -1,19 +1,28 @@
 /*
  *
- * MQTT (mosquitto, dva klijenta) FSM - "Santic" Lookup Table Pattern (void
- * akcijske procedure), 16 stanja, 9 dogadjaja.
- * UART commands (9600 baud):
+ * Razlika od fsm_function_pointers_esp32.cpp (Carlgren & Oskarsson, Figure 8):
+ * tamo handler VRACA next_state, a current_state upisuje pozivalac spolja.
+ * Ovde, tacno po Santicu, akcijska procedura je void i SAMA upisuje
+ * current_state kao sporedni efekat - broj indirektnih poziva je isti
+ * (jedan po tranziciji), razlikuje se samo MEHANIZAM prenosa sledeceg stanja.
+ *
+ * Po Santicevom upozorenju da tabela pretrage - za razliku od switch-a -
+ * nema default granu za nevalidne indekse, ovde je zadrzana njegova
+ * eksplicitna provera granica pre poziva iz tabele.
+ *
+ * Serial commands (115200 baud):
  *   num(dec 0-8) -> event index (redosled kao u enum Event)
- *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles
+ *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles + resource usage
+ *   'r' -> print current resource usage (heap/stack/flash) on demand
  */
 
 #include <Arduino.h>
-#include <avr/io.h>
-#include <avr/interrupt.h>
 #include <stdint.h>
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 enum State
 {
@@ -38,51 +47,20 @@ enum Event
 
 static volatile uint8_t current_state = S0;
 
-#define BAUD 9600
-#define UBRR_VAL ((F_CPU / (16UL * BAUD)) - 1)
-
-static void uart_init(void) {
-    UBRR0H = (uint8_t)(UBRR_VAL >> 8);
-    UBRR0L = (uint8_t)UBRR_VAL;
-    UCSR0B = (1 << TXEN0) | (1 << RXEN0);
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00); // 8N1
+static void print_resource_usage(void) {
+    Serial.println();
+    Serial.println(F("--- ESP32 resource usage ---"));
+    Serial.printf("Free heap:      %u / %u bytes\r\n", ESP.getFreeHeap(), ESP.getHeapSize());
+    Serial.printf("Min free heap:  %u bytes (worst case since boot)\r\n", ESP.getMinFreeHeap());
+    Serial.printf("Max alloc heap: %u bytes (largest contiguous block)\r\n", ESP.getMaxAllocHeap());
+    Serial.printf("Stack HWM:      %u bytes free (loop task)\r\n", (unsigned)(uxTaskGetStackHighWaterMark(NULL) * 4));
+    Serial.printf("Sketch used:    %u bytes, free flash: %u bytes\r\n", ESP.getSketchSize(), ESP.getFreeSketchSpace());
+    Serial.printf("CPU freq:       %u MHz\r\n", ESP.getCpuFreqMHz());
+    Serial.println();
 }
 
-static void uart_putc(char c) {
-    while (!(UCSR0A & (1 << UDRE0)));
-    UDR0 = c;
-}
-
-static void uart_puts(const char *s) {
-    while (*s) uart_putc(*s++);
-}
-
-static void uart_put_uint(uint16_t v) {
-    char buf[6];
-    uint8_t i = 0;
-    if (v == 0) { uart_putc('0'); return; }
-    while (v > 0) { buf[i++] = '0' + (v % 10); v /= 10; }
-    while (i > 0) uart_putc(buf[--i]);
-}
-
-static uint8_t uart_available(void) {
-    return (UCSR0A & (1 << RXC0)) != 0;
-}
-
-static char uart_getc(void) {
-    while (!(UCSR0A & (1 << RXC0)));
-    return UDR0;
-}
-
-static inline void cycles_start(void) {
-    TCCR1B = 0;
-    TCNT1 = 0;
-    TCCR1B = (1 << CS10); // no prescaler
-}
-
-static inline uint16_t cycles_stop(void) {
-    TCCR1B = 0;
-    return TCNT1;
+static inline uint32_t cycles_now(void) {
+    return ESP.getCycleCount();
 }
 
 // ---------- Akcijske procedure (void) - svaka SAMA upisuje current_state ----------
@@ -270,75 +248,65 @@ static const char *state_name(uint8_t s)
 // next_state - tranzicija je sporedni efekat poziva iz tabele. Eksplicitna
 // provera granica pre poziva odrazava Santicevo upozorenje da tabela
 // pretrage, za razliku od switch-a, nema default granu.
-static uint16_t measured_transition(uint8_t event) {
-    cli();
-    cycles_start();
+static uint32_t measured_transition(uint8_t event) {
+    noInterrupts();
+    uint32_t start = cycles_now();
     if ((event < NUM_EVENTS) && (current_state < NUM_STATES)) {
         state_table[current_state][event](); // poziv radi sporednog efekta na current_state
     }
-    uint16_t cycles = cycles_stop();
-    sei();
-    return cycles;
+    uint32_t end = cycles_now();
+    interrupts();
+    return end - start;
 }
 
-static void run_benchmark(void)
-{
+static void run_benchmark(void) {
     const uint16_t N = 1000;
-    uint16_t min_c = 0xFFFF, max_c = 0;
-    uint32_t sum_c = 0;
+    uint32_t min_c = 0xFFFFFFFF, max_c = 0;
+    uint64_t sum_c = 0;
 
-    // Unapred generisan niz dogadjaja, POTPUNO van merenog prozora - sprecava
-    // da -flto premesti rand()%NUM_EVENTS deljenje unutar cli()/sei() bloka.
-    static uint8_t precomputed_events[N];
+    Serial.printf("Running benchmark (%u transitions)...\r\n", N);
+
     for (uint16_t i = 0; i < N; i++) {
-        precomputed_events[i] = rand() % NUM_EVENTS;
-    }
-
-    uart_puts("Running benchmark (");
-    uart_put_uint(N);
-    uart_puts(" transitions)...\r\n");
-
-    for (uint16_t i = 0; i < N; i++)
-    {
-        uint16_t c = measured_transition(precomputed_events[i]);
-        if (c < min_c)
-            min_c = c;
-        if (c > max_c)
-            max_c = c;
+        uint8_t event = rand() % NUM_EVENTS;
+        uint32_t c = measured_transition(event);
+        if (c < min_c) min_c = c;
+        if (c > max_c) max_c = c;
         sum_c += c;
     }
-    
-    uart_puts("Min cycles: ");
-    uart_put_uint(min_c);
-    uart_puts("\r\n");
-    uart_puts("Max cycles: ");
-    uart_put_uint(max_c);
-    uart_puts("\r\n");
-    uart_puts("Avg cycles: ");
-    uart_put_uint((uint16_t)(sum_c / N));
-    uart_puts("\r\n");
+
+    double mhz = ESP.getCpuFreqMHz();
+    uint32_t avg_c = (uint32_t)(sum_c / N);
+    Serial.printf("Min cycles: %u (%.3f us)\r\n", min_c, min_c / mhz);
+    Serial.printf("Max cycles: %u (%.3f us)\r\n", max_c, max_c / mhz);
+    Serial.printf("Avg cycles: %u (%.3f us)\r\n", avg_c, avg_c / mhz);
+
+    print_resource_usage();
 }
 
 void setup()
 {
-    uart_init();
-    uart_puts("\r\nMQTT FSM - Santic Lookup Table (void action procedures) pattern ready.\r\n");
-    uart_puts("Commands: num(dec 0-8)=EVENT b=BENCHMARK\r\n");
-    uart_puts("Current state: S0\r\n");
+    Serial.begin(115200);
+    delay(200);
+    Serial.println();
+    Serial.println(F("MQTT FSM - Santic Lookup Table (void action procedures) pattern ready (ESP32)."));
+    Serial.println(F("Commands: num(dec 0-8)=EVENT b=BENCHMARK r=RESOURCES"));
+    Serial.println(F("Current state: S0"));
+    print_resource_usage();
 
     srand(time(0));
 }
 
 void loop()
 {
-    if (uart_available())
-    {
-        char c = uart_getc();
+    if (Serial.available()) {
+        char c = Serial.read();
         uint8_t event;
 
-        if (c == 'b')
-        {
+        if (c == 'b') {
             run_benchmark();
+            return;
+        } else if (c == 'r') {
+            print_resource_usage();
             return;
         }
 
@@ -349,12 +317,10 @@ void loop()
             return;
         }
 
-        uint16_t cycles = measured_transition(event);
+        uint32_t cycles = measured_transition(event);
+        double mhz = ESP.getCpuFreqMHz();
 
-        uart_puts("Event handled -> State: ");
-        uart_puts(state_name(current_state));
-        uart_puts(" | Cycles: ");
-        uart_put_uint(cycles);
-        uart_puts("\r\n");
+        Serial.printf("Event handled -> State: %s | Cycles: %u (%.3f us)\r\n",
+                      state_name(current_state), cycles, cycles / mhz);
     }
 }
