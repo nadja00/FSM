@@ -23,7 +23,8 @@ FSM_ENVS = [
     "fsm_hsm_flat",
     "fsm_hsm_nested",
     "fsm_time_independent_timer_isr",  # napomena: 'b' ovde pokrece Scenario B, ne 1000-tranzicija benchmark
-    "fsm_lookup_table_santic"
+    "fsm_lookup_table_santic",
+    "fsm_function_pointers"
 ]
 
 # Bez -flto na ESP32: precompiled SDK biblioteke (WiFi/BT/...) nisu gradjene sa LTO,
@@ -93,6 +94,9 @@ build_src_filter = +<fsm_time_independent_timer_isr.cpp>
 
 [env:fsm_lookup_table_santic]
 build_src_filter = +<fsm_lookup_table_santic.cpp>
+
+[env:fsm_function_pointers]
+build_src_filter = +<fsm_function_pointers.cpp>
 
 """
     with open("platformio.ini", "w", encoding="utf-8") as f:
