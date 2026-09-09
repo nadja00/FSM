@@ -1,0 +1,5 @@
+Izbacena je funkcija za ispis imena koja se poziva prilikom rucnog testiranja, jer iz nekog razloga njeno prisustvo uvecave zauzece
+SRAM-a!
+
+Takodje je za array_of_structs obe varijante, kao i za FP i Santic dodata <avr/pgmspace.h>, jer se ne bi mogao ispravno spustiti
+kod bez premestanja tabela u PROGMEM, jer je SRAM zauzece uvek bilo vece od 2kB.

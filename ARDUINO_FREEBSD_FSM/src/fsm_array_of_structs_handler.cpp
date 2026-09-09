@@ -1,28 +1,7 @@
-/*
- * Rad: Carlgren, J., Oskarsson, P. W. (2023). "State Machine Model-To-Code
- * Transformation In C." UPTEC F 23044, Uppsala University - sekcija 3.7
- * "Array of Structs" (Figure 9).
- *
- * Access Control FSM - Array of Structs Pattern, VERNIJA varijanta prema radu.
- * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED (identicno ostalim testovima)
- * Events: EV_VALID, EV_INVALID, EV_TIMEOUT
- *
- * Razlika od fsm_array_of_structs.cpp: svaki unos u nizu struct-ova ovde ne
- * cuva next_state direktno vec POKAZIVAC NA eventHandler FUNKCIJU (tacno kao
- * "stateMachineEventHandler" polje u radu), koja se poziva i vraca next_state.
- * Ovo dodaje jedan indirektni poziv funkcije po tranziciji koji jednostavnija
- * verzija (fsm_array_of_structs.cpp, po uzoru na A. Kumar) nema.
- *
- * UART commands (9600 baud):
- *   '1' -> EV_VALID
- *   '0' -> EV_INVALID
- *   't' -> EV_TIMEOUT
- *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles
- */
 #include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h>
+#include <avr/pgmspace.h>   // Neophodno zbog memorijskog zauzeca SRAM-a
 #include <stdint.h>
 #include <time.h>
 #include <stdlib.h>

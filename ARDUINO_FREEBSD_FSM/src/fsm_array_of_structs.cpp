@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h>
+#include <avr/pgmspace.h>   // Neophodno zbog memorijskog zauzeca SRAM-a
 #include <stdint.h>
 #include <time.h>
 #include <stdlib.h>

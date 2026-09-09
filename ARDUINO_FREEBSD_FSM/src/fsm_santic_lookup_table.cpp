@@ -1,16 +1,7 @@
-/*
- *
- * MQTT (mosquitto, dva klijenta) FSM - "Santic" Lookup Table Pattern (void
- * akcijske procedure), 16 stanja, 9 dogadjaja.
- * UART commands (9600 baud):
- *   num(dec 0-8) -> event index (redosled kao u enum Event)
- *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles
- */
-
 #include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h>
+#include <avr/pgmspace.h>   // Neophodno zbog memorijskog zauzeca SRAM-a
 #include <stdint.h>
 #include <time.h>
 #include <stdlib.h>

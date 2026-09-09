@@ -1,28 +1,7 @@
-/*
- * Rad: Carlgren, J., Oskarsson, P. W. (2023). "State Machine Model-To-Code
- * Transformation In C." UPTEC F 23044, Uppsala University - sekcija 3.6
- * "Function Pointers" (Figure 8).
- *
- * Access Control FSM - Function Pointers Pattern (kako ga rad doslovno naziva).
- * FSM: 4 states - IDLE, CHECKING, GRANTED, DENIED
- * Events: EV_VALID, EV_INVALID, EV_TIMEOUT
- *
- * Razlika od fsm_indexed_table.cpp: tamo 2D niz cuva next_state VREDNOST
- * direktno (jedno citanje iz memorije). Ovde 2D niz cuva POKAZIVACE NA
- * FUNKCIJE (StateMachine[state][event] iz Fig. 8 rada) - svaka celija se
- * poziva, ukljucujuci i "no-op" celije za nevalidne kombinacije. Ovo dodaje
- * indirektni poziv funkcije koji indexed_table nema.
- *
- * UART commands (9600 baud):
- *   '1' -> EV_VALID
- *   '0' -> EV_INVALID
- *   't' -> EV_TIMEOUT
- *   'b' -> run automatic benchmark (1000 transitions), prints min/avg/max cycles
- */
 #include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h>
+#include <avr/pgmspace.h>   // Neophodno zbog memorijskog zauzeca SRAM-a
 #include <stdint.h>
 #include <time.h>
 #include <stdlib.h>
